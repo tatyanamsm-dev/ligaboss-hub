@@ -60,9 +60,9 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
 
   return (
     <div>
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-4 gap-3 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Аналитика</h2>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
           {(['day', 'week', 'month'] as Period[]).map(p => (
             <button key={p} onClick={() => setPeriod(p)}
               className="px-4 py-1.5 rounded-md text-sm font-medium transition"
@@ -73,12 +73,12 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {loading ? (
           <div className="text-center py-20 text-gray-400">Загружаем данные...</div>
         ) : (
           <>
-            <div className="grid grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
               <KpiCard label="Всего встреч" value={total} />
               <KpiCard label="Проведено" value={conducted}
                 sub={total ? `${Math.round(conducted / total * 100)}% от всех` : ''} />
@@ -87,11 +87,11 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
               <KpiCard label="Выручка" value={`${revenue.toLocaleString('ru-RU')} ₽`} accent />
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h3 className="font-bold" style={{ color: 'var(--navy)' }}>Конверсии по менеджерам</h3>
               </div>
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead style={{ backgroundColor: 'var(--cream)' }}>
                   <tr>
                     {['Менеджер', 'Встреч', 'Проведено', 'Не пришёл', 'Продажи', 'Конверсия', 'Выручка'].map(h => (

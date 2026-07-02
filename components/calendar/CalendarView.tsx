@@ -122,11 +122,9 @@ export default function CalendarView({ userRole, userMopName }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Шапка */}
-      <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Общий календарь встреч</h2>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 md:px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Общий календарь встреч</h2>
+        <div className="flex items-center gap-2 sm:ml-auto">
           <button onClick={() => setBaseDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-500">
             <ChevronLeft size={18} />
@@ -204,7 +202,7 @@ export default function CalendarView({ userRole, userMopName }: Props) {
             const dayLabel = `${RU_DAYS_SHORT[dow]}, ${dayDate.getDate()} ${RU_MONTHS[dayDate.getMonth()]}`
 
             return (
-              <div className="p-5">
+              <div className="p-3 md:p-5">
                 <h3 className="text-sm font-semibold mb-3 uppercase tracking-wide" style={{ color: 'var(--gold)' }}>
                   {dayLabel}
                 </h3>
@@ -215,7 +213,7 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                     <span className="text-sm">Настройте расписание в разделе &quot;Расписание МОПов&quot;</span>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
                     {/* Заголовки МОПов */}
                     <div className="grid border-b border-gray-100"
                       style={{ gridTemplateColumns: `72px repeat(${visibleMops.length}, 1fr)` }}>

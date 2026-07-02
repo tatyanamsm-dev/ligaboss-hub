@@ -53,16 +53,16 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <h2 className="text-2xl font-bold text-gray-900">Оплаты</h2>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             {(['week', 'month', 'all'] as Period[]).map(p => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${period === p ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${period === p ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 {p === 'week' ? 'Неделя' : p === 'month' ? 'Месяц' : 'Все'}
               </button>
@@ -70,7 +70,8 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            className="flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+            style={{ backgroundColor: 'var(--navy)' }}
           >
             <Plus size={16} />
             Добавить
@@ -78,17 +79,18 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-5"
+        style={{ borderLeft: '4px solid var(--gold)' }}>
         <p className="text-sm text-gray-500">Итого за период</p>
-        <p className="text-3xl font-bold text-gray-900">{totalRevenue.toLocaleString('ru-RU')} ₽</p>
+        <p className="text-3xl font-bold" style={{ color: 'var(--navy)' }}>{totalRevenue.toLocaleString('ru-RU')} ₽</p>
         <p className="text-sm text-gray-400 mt-1">{payments.length} платежей</p>
       </div>
 
       {loading ? (
         <div className="text-center py-20 text-gray-400">Загружаем данные...</div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50">
               <tr>
                 {['Дата', 'Менеджер', 'Клиент', 'Тариф', 'Сумма', 'Способ', 'Bitrix', ''].map(h => (

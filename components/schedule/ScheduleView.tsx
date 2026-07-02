@@ -21,9 +21,9 @@ export default function ScheduleView({ userRole, userMopName }: Props) {
   return (
     <div>
       {/* Шапка */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-4 gap-3 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Расписание менеджеров</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 self-start sm:self-auto">
           <button onClick={() => setTab('days')}
             className="px-4 py-2 rounded-lg text-sm font-medium transition"
             style={tab === 'days'
@@ -41,7 +41,7 @@ export default function ScheduleView({ userRole, userMopName }: Props) {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         {tab === 'days' ? (
           <WorkDaysCalendar mops={userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])} />
         ) : (

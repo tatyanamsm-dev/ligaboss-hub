@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, BarChart3, CreditCard } from 'lucide-react'
+import { CalendarDays, BarChart3, CreditCard, X } from 'lucide-react'
 
 const nav = [
   {
@@ -20,15 +20,17 @@ const nav = [
 interface SidebarProps {
   userName: string
   userRole: string
+  open?: boolean
+  onClose?: () => void
 }
 
-export default function Sidebar({ userName, userRole }: SidebarProps) {
+export default function Sidebar({ userName, userRole, open, onClose }: SidebarProps) {
   const pathname = usePathname()
 
-  return (
-    <aside className="w-60 min-h-screen flex flex-col" style={{ backgroundColor: 'var(--navy)' }}>
+  const content = (
+    <aside className="w-60 min-h-screen flex flex-col h-full" style={{ backgroundColor: 'var(--navy)' }}>
       {/* Логотип */}
-      <div className="px-5 py-5 border-b border-white/10">
+      <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white border border-white/20"
             style={{ backgroundColor: 'var(--navy-light)' }}>
@@ -41,6 +43,12 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
             <p className="text-white/40 text-xs mt-0.5">Hub</p>
           </div>
         </div>
+        {/* Закрыть на мобильном */}
+        {onClose && (
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 md:hidden">
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Навигация */}
@@ -61,10 +69,9 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
                       <Link
                         key={child.href}
                         href={child.href}
+                        onClick={onClose}
                         className={`block px-3 py-1.5 rounded-lg text-sm transition ${
-                          active
-                            ? 'text-white font-medium'
-                            : 'text-white/50 hover:text-white/80'
+                          active ? 'text-white font-medium' : 'text-white/50 hover:text-white/80'
                         }`}
                         style={active ? { backgroundColor: 'var(--gold)', color: 'white' } : {}}
                       >
@@ -82,6 +89,7 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
                 active ? 'text-white' : 'text-white/50 hover:text-white/80'
               }`}
@@ -108,5 +116,29 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
         </div>
       </div>
     </aside>
+  )
+
+  return (
+    <>
+      {/* Десктоп — всегда видно */}
+      <div className="hidden md:block w-60 flex-shrink-0">
+        {content}
+      </div>
+
+      {/* Мобильный — drawer */}
+      {open && (
+        <>
+          {/* Затемнение */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={onClose}
+          />
+          {/* Панель */}
+          <div className="fixed inset-y-0 left-0 z-50 md:hidden">
+            {content}
+          </div>
+        </>
+      )}
+    </>
   )
 }
