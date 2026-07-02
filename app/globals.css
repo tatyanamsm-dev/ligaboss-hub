@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #1B2848;
+  --navy-light: #253660;
+  --gold: #C8912A;
+  --gold-light: #E0A83A;
+  --cream: #F5F0E6;
+  --cream-dark: #EDE7D9;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--cream);
+  color: var(--navy);
+}
+
+@layer components {
+  .input {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white;
+    --tw-ring-color: var(--gold);
+  }
+  .label {
+    @apply block text-sm font-medium mb-1;
+    color: var(--navy);
+  }
+  .btn-primary {
+    background-color: var(--navy);
+    @apply text-white font-semibold py-2.5 px-5 rounded-lg transition hover:opacity-90 disabled:opacity-50;
+  }
+  .btn-gold {
+    background-color: var(--gold);
+    @apply text-white font-semibold py-2 px-4 rounded-lg transition hover:opacity-90;
+  }
+}
