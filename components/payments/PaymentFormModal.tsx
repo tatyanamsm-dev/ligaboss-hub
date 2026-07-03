@@ -101,8 +101,8 @@ export default function PaymentFormModal({ meeting, prefillMop, prefillName, pre
       messenger_value: form.messenger_type === 'telegram' ? (form.messenger_value || null) : null,
       region: form.region || null,
       timezone: form.timezone || null,
-      tariff: form.tariff || form.product || '—',
-      product: form.product || null,
+      tariff: form.tariff || '—',
+      product: null,
       legal_form: form.legal_form || null,
       licensing: form.licensing || null,
       certificate_type: form.certificate_type || null,
@@ -213,13 +213,8 @@ export default function PaymentFormModal({ meeting, prefillMop, prefillName, pre
             <h4 className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--gold)' }}>
               Что купил клиент
             </h4>
-            <div>
-              <label className="label">Продукт / курс *</label>
-              <input className="input" required value={form.product}
-                onChange={e => set('product', e.target.value)} placeholder="Название курса" />
-            </div>
             <RadioGroup
-              label="Тариф"
+              label="Тариф *"
               options={['Базовый', 'Оптимальный', 'Максимальный']}
               value={form.tariff}
               onChange={v => set('tariff', v)}
