@@ -58,7 +58,7 @@ export default function Sidebar({ userName, userRole, open, onClose }: SidebarPr
 
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {nav.map((item) => {
-          if ('children' in item) {
+          if ('children' in item && item.children) {
             const isActive = item.children.some(c => pathname.startsWith(c.href))
             return (
               <div key={item.label}>

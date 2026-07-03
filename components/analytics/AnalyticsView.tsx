@@ -54,8 +54,8 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
 
   const visibleMops = userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])
   const total = meetings.length
-  const conducted = meetings.filter(m => m.status === 'Проведено').length
-  const sales = meetings.filter(m => m.result === 'Продажа').length
+  const conducted = meetings.filter(m => m.status === 'Подтвердил').length
+  const sales = meetings.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
   const revenue = payments.reduce((s, p) => s + Number(p.amount), 0)
 
   return (
@@ -103,8 +103,8 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
                   {visibleMops.map(mop => {
                     const mm = meetings.filter(m => m.mop_name === mop)
                     const pp = payments.filter(p => p.mop_name === mop)
-                    const mConducted = mm.filter(m => m.status === 'Проведено').length
-                    const mSales = mm.filter(m => m.result === 'Продажа').length
+                    const mConducted = mm.filter(m => m.status === 'Подтвердил').length
+                    const mSales = mm.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
                     const mRevenue = pp.reduce((s, p) => s + Number(p.amount), 0)
                     const conv = mConducted ? Math.round(mSales / mConducted * 100) : 0
                     return (
@@ -112,7 +112,7 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
                         <td className="px-4 py-3 font-semibold" style={{ color: 'var(--navy)' }}>{mop}</td>
                         <td className="px-4 py-3 text-gray-600">{mm.length}</td>
                         <td className="px-4 py-3 text-gray-600">{mConducted}</td>
-                        <td className="px-4 py-3 text-red-500">{mm.filter(m => m.status === 'Не пришёл').length}</td>
+                        <td className="px-4 py-3 text-red-500">{mm.filter(m => m.status === 'Игнор в день встречи').length}</td>
                         <td className="px-4 py-3 font-semibold text-emerald-600">{mSales}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${conv >= 50 ? 'bg-emerald-100 text-emerald-700' : conv >= 25 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
