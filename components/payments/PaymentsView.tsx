@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfWeekMon, addDays, startOfMonth, endOfMonth } from '@/lib/dateUtils'
 import type { Payment, MopName, UserRole } from '@/types'
 import PaymentFormModal from './PaymentFormModal'
+import PeriodFilter, { type PeriodValue } from '@/components/ui/PeriodFilter'
 
 function exportToExcel(payments: Payment[]) {
   const headers = ['Дата','Менеджер','Клиент','Телефон','Email','Тариф','Сумма','Способ оплаты','Регион','Форма орг.','Лицензирование','Bitrix','Комментарий']
@@ -29,7 +30,6 @@ function exportToExcel(payments: Payment[]) {
   URL.revokeObjectURL(url)
 }
 
-type Period = 'week' | 'month' | 'all'
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
 
 interface Props {
@@ -38,7 +38,9 @@ interface Props {
 }
 
 export default function PaymentsView({ userRole, userMopName }: Props) {
-  const [period, setPeriod] = useState<Period>('month')
+  const [period, setPeriod] = useState<PeriodValue>('month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -48,16 +50,20 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
   const now = new Date()
   const weekStart = startOfWeekMon(now)
 
-  const ranges: Record<Period, { from?: string; to?: string }> = {
-    week: { from: formatDate(weekStart), to: formatDate(addDays(weekStart, 6)) },
-    month: { from: formatDate(startOfMonth(now)), to: formatDate(endOfMonth(now)) },
-    all: {},
+  function getRange() {
+    switch (period) {
+      case 'today': return { from: formatDate(now), to: formatDate(now) }
+      case 'week': return { from: formatDate(weekStart), to: formatDate(addDays(weekStart, 6)) }
+      case 'month': return { from: formatDate(startOfMonth(now)), to: formatDate(endOfMonth(now)) }
+      case 'custom': return { from: customFrom, to: customTo }
+      default: return {}
+    }
   }
 
   async function load() {
     setLoading(true)
     let q = supabase.from('payments').select('*').order('payment_date', { ascending: false })
-    const { from, to } = ranges[period]
+    const { from, to } = getRange()
     if (from) q = q.gte('payment_date', from)
     if (to) q = q.lte('payment_date', to)
     const { data } = await q
@@ -65,7 +71,13 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [period]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [period, customFrom, customTo]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handlePeriodChange(p: PeriodValue, from?: string, to?: string) {
+    setPeriod(p)
+    if (from) setCustomFrom(from)
+    if (to) setCustomTo(to)
+  }
 
   const filtered = search.trim()
     ? payments.filter(p => {
@@ -87,17 +99,7 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <h2 className="text-2xl font-bold text-gray-900">Оплаты</h2>
         <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {(['week', 'month', 'all'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${period === p ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                {p === 'week' ? 'Неделя' : p === 'month' ? 'Месяц' : 'Все'}
-              </button>
-            ))}
-          </div>
+          <PeriodFilter period={period} onChange={handlePeriodChange} options={['week', 'month', 'all', 'custom']} />
           <button
             onClick={() => exportToExcel(filtered)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-700"

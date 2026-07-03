@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfWeekMon, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from '@/lib/dateUtils'
 import type { Meeting, Payment, MopName, UserRole } from '@/types'
+import PeriodFilter, { type PeriodValue } from '@/components/ui/PeriodFilter'
 
-type Period = 'day' | 'week' | 'month'
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
 
 interface Props { userRole: UserRole; userMopName: MopName | null }
@@ -22,7 +22,9 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string |
 }
 
 export default function AnalyticsView({ userRole, userMopName }: Props) {
-  const [period, setPeriod] = useState<Period>('week')
+  const [period, setPeriod] = useState<PeriodValue>('week')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,16 +32,27 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
 
   const now = new Date()
   const weekStart = startOfWeekMon(now)
-  const ranges: Record<Period, { from: string; to: string }> = {
-    day:   { from: formatDate(startOfDay(now)), to: formatDate(endOfDay(now)) },
-    week:  { from: formatDate(weekStart), to: formatDate(addDays(weekStart, 6)) },
-    month: { from: formatDate(startOfMonth(now)), to: formatDate(endOfMonth(now)) },
+
+  function getRange(): { from: string; to: string } {
+    switch (period) {
+      case 'today': return { from: formatDate(startOfDay(now)), to: formatDate(endOfDay(now)) }
+      case 'week':  return { from: formatDate(weekStart), to: formatDate(addDays(weekStart, 6)) }
+      case 'month': return { from: formatDate(startOfMonth(now)), to: formatDate(endOfMonth(now)) }
+      case 'custom': return { from: customFrom || '2020-01-01', to: customTo || '2099-12-31' }
+      default: return { from: '2020-01-01', to: '2099-12-31' }
+    }
+  }
+
+  function handlePeriodChange(p: PeriodValue, from?: string, to?: string) {
+    setPeriod(p)
+    if (from) setCustomFrom(from)
+    if (to) setCustomTo(to)
   }
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const { from, to } = ranges[period]
+      const { from, to } = getRange()
       const [mRes, pRes] = await Promise.all([
         supabase.from('meetings').select('*').gte('date', from).lte('date', to).eq('is_repeated', false),
         supabase.from('payments').select('*').gte('payment_date', from).lte('payment_date', to),
@@ -50,7 +63,7 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period])
+  }, [period, customFrom, customTo])
 
   const visibleMops = userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])
   const total = meetings.length
@@ -62,15 +75,7 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-4 gap-3 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Аналитика</h2>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
-          {(['day', 'week', 'month'] as Period[]).map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className="px-4 py-1.5 rounded-md text-sm font-medium transition"
-              style={period === p ? { backgroundColor: 'var(--navy)', color: 'white' } : { color: '#6b7280' }}>
-              {p === 'day' ? 'День' : p === 'week' ? 'Неделя' : 'Месяц'}
-            </button>
-          ))}
-        </div>
+        <PeriodFilter period={period} onChange={handlePeriodChange} options={['today', 'week', 'month', 'all', 'custom']} />
       </div>
 
       <div className="p-4 md:p-6">

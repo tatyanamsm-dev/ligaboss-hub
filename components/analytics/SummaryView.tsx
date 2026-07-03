@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfWeekMon, addDays, startOfMonth, endOfMonth } from '@/lib/dateUtils'
 import type { Meeting, Payment, MopName, UserRole, MopTimeSlot } from '@/types'
-
-type Period = 'day' | 'week' | 'month' | 'all'
+import PeriodFilter, { type PeriodValue } from '@/components/ui/PeriodFilter'
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
 const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
 
@@ -32,7 +31,9 @@ function ConvCard({ label, pct }: { label: string; pct: number }) {
 interface Props { userRole: UserRole; userMopName: MopName | null }
 
 export default function SummaryView({ userRole, userMopName }: Props) {
-  const [period, setPeriod] = useState<Period>('month')
+  const [period, setPeriod] = useState<PeriodValue>('month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [slots, setSlots] = useState<MopTimeSlot[]>([])
@@ -44,11 +45,18 @@ export default function SummaryView({ userRole, userMopName }: Props) {
 
   function getRange() {
     switch (period) {
-      case 'day': return { from: formatDate(now), to: formatDate(now) }
+      case 'today': return { from: formatDate(now), to: formatDate(now) }
       case 'week': return { from: formatDate(weekStart), to: formatDate(addDays(weekStart, 6)) }
       case 'month': return { from: formatDate(startOfMonth(now)), to: formatDate(endOfMonth(now)) }
-      default: return {}
+      case 'custom': return { from: customFrom || '2020-01-01', to: customTo || '2099-12-31' }
+      default: return { from: '', to: '' }
     }
+  }
+
+  function handlePeriodChange(p: PeriodValue, from?: string, to?: string) {
+    setPeriod(p)
+    if (from) setCustomFrom(from)
+    if (to) setCustomTo(to)
   }
 
   useEffect(() => {
@@ -78,7 +86,7 @@ export default function SummaryView({ userRole, userMopName }: Props) {
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period])
+  }, [period, customFrom, customTo])
 
   const visibleMops = userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])
 
@@ -105,15 +113,7 @@ export default function SummaryView({ userRole, userMopName }: Props) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 md:px-6 py-4 gap-3 bg-white border-b border-gray-200 shadow-sm">
         <h2 className="text-xl font-bold" style={{ color: 'var(--navy)' }}>Итоги отдела продаж</h2>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 self-start sm:self-auto">
-          {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              className="px-3 py-1.5 rounded-md text-sm font-medium transition"
-              style={period === p ? { backgroundColor: 'var(--navy)', color: 'white' } : { color: '#6b7280' }}>
-              {p === 'day' ? 'День' : p === 'week' ? 'Неделя' : p === 'month' ? 'Месяц' : 'Всё'}
-            </button>
-          ))}
-        </div>
+        <PeriodFilter period={period} onChange={handlePeriodChange} options={['today', 'week', 'month', 'all', 'custom']} />
       </div>
 
       {loading ? (
