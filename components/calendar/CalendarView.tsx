@@ -112,6 +112,13 @@ export default function CalendarView({ userRole, userMopName }: Props) {
     )
   }
 
+  function getTransferredMeeting(mop: MopName, date: string, time: string) {
+    return meetings.find(m =>
+      m.mop_name === mop && m.date === date && m.time_slot === time + ':00'
+      && (m.is_transferred || meetings.some(m2 => m2.original_meeting_id === m.id))
+    )
+  }
+
   function getMeetingCount(dateStr: string) {
     return meetings.filter(m => m.date === dateStr && !m.is_transferred).length
   }
@@ -246,9 +253,10 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                           const wdStatus = getWorkDayStatus(mop, expandedDay)
                           const hasSlot = getActiveSlots(mop, expandedDay).includes(time)
                           const meeting = getMeeting(mop, expandedDay, time)
+                          const transferred = getTransferredMeeting(mop, expandedDay, time)
 
                           return (
-                            <div key={mop} className="p-2 border-r border-gray-100 last:border-0">
+                            <div key={mop} className="p-2 border-r border-gray-100 last:border-0 space-y-1.5">
                               {wdStatus !== 'working' ? (
                                 <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-2.5 text-center">
                                   <span className="text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
@@ -297,13 +305,33 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                                   )}
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
-                                  className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}
-                                >
-                                  <Plus size={13} />
-                                  Записать
-                                </button>
+                                <>
+                                  {/* Серая карточка перенесённой встречи */}
+                                  {transferred && (
+                                    <div
+                                      onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
+                                      className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-2.5 cursor-pointer hover:bg-gray-100 transition opacity-60"
+                                    >
+                                      <div className="flex items-center justify-between gap-1 mb-1">
+                                        <span className="text-xs font-semibold text-gray-500 truncate line-through">
+                                          {transferred.client_name}
+                                        </span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">
+                                          Перенесён
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-gray-400">{transferred.client_phone}</div>
+                                    </div>
+                                  )}
+                                  {/* Кнопка записи */}
+                                  <button
+                                    onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
+                                    className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}
+                                  >
+                                    <Plus size={13} />
+                                    Записать
+                                  </button>
+                                </>
                               )}
                             </div>
                           )
