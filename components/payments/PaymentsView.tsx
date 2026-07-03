@@ -1,10 +1,32 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, ExternalLink, Trash2 } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Download, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfWeekMon, addDays, startOfMonth, endOfMonth } from '@/lib/dateUtils'
 import type { Payment, MopName, UserRole, PaymentMethod } from '@/types'
+
+function exportToExcel(payments: Payment[]) {
+  const headers = ['Дата','Менеджер','Клиент','Телефон','Email','Тариф','Сумма','Способ оплаты','Регион','Форма орг.','Лицензирование','Bitrix','Комментарий']
+  const rows = payments.map(p => [
+    p.payment_date, p.mop_name, p.client_name,
+    p.client_phone ?? '', p.email ?? '',
+    p.tariff ?? '', Number(p.amount), p.payment_method,
+    p.region ?? '', p.legal_form ?? '', p.licensing ?? '',
+    p.bitrix_link ?? '', p.comment ?? '',
+  ])
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const BOM = '﻿'
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `оплаты_${formatDate(new Date())}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 type Period = 'week' | 'month' | 'all'
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
@@ -20,6 +42,7 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
   const supabase = createClient()
 
   const now = new Date()
@@ -44,7 +67,14 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
 
   useEffect(() => { load() }, [period]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0)
+  const filtered = search.trim()
+    ? payments.filter(p => {
+        const q = search.toLowerCase()
+        return (p.client_phone ?? '').includes(q) || (p.email ?? '').toLowerCase().includes(q) || p.client_name.toLowerCase().includes(q)
+      })
+    : payments
+
+  const totalRevenue = filtered.reduce((s, p) => s + Number(p.amount), 0)
 
   async function handleDelete(id: string) {
     if (!confirm('Удалить запись об оплате?')) return
@@ -69,6 +99,13 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
             ))}
           </div>
           <button
+            onClick={() => exportToExcel(filtered)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-700"
+          >
+            <Download size={16} />
+            Excel
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
             style={{ backgroundColor: 'var(--navy)' }}
@@ -79,11 +116,22 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
         </div>
       </div>
 
+      {/* Поиск */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white"
+          placeholder="Поиск по телефону, email или имени..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-5"
         style={{ borderLeft: '4px solid var(--gold)' }}>
         <p className="text-sm text-gray-500">Итого за период</p>
         <p className="text-3xl font-bold" style={{ color: 'var(--navy)' }}>{totalRevenue.toLocaleString('ru-RU')} ₽</p>
-        <p className="text-sm text-gray-400 mt-1">{payments.length} платежей</p>
+        <p className="text-sm text-gray-400 mt-1">{filtered.length} платежей</p>
       </div>
 
       {loading ? (
@@ -99,9 +147,9 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {payments.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Нет данных за период</td></tr>
-              ) : payments.map(p => (
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Нет данных</td></tr>
+              ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-500">{p.payment_date}</td>
                   <td className="px-4 py-3 font-medium">{p.mop_name}</td>
