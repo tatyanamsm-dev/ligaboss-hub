@@ -224,126 +224,163 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                     <span className="text-sm">Настройте расписание в разделе &quot;Расписание МОПов&quot;</span>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
-                    {/* Заголовки МОПов */}
-                    <div className="grid border-b border-gray-100"
-                      style={{ gridTemplateColumns: `72px repeat(${visibleMops.length}, 1fr)` }}>
-                      <div className="border-r border-gray-100 bg-gray-50" />
-                      {visibleMops.map(mop => (
-                        <div key={mop} className="px-4 py-3 text-center border-r border-gray-100 last:border-0 bg-gray-50">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${MOP_COLORS[mop].dot}`} />
-                            <span className="text-sm font-semibold" style={{ color: 'var(--navy)' }}>{mop}</span>
+                  <>
+                    {/* МОБИЛЬНЫЙ вид — МОПы вертикально */}
+                    <div className="md:hidden space-y-4">
+                      {visibleMops.map(mop => {
+                        const mopSlots = getActiveSlots(mop, expandedDay)
+                        const wdStatus = getWorkDayStatus(mop, expandedDay)
+                        return (
+                          <div key={mop} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100" style={{ backgroundColor: 'var(--cream)' }}>
+                              <span className={`w-2.5 h-2.5 rounded-full ${MOP_COLORS[mop].dot}`} />
+                              <span className="font-bold text-base" style={{ color: 'var(--navy)' }}>{mop}</span>
+                              {wdStatus !== 'working' && (
+                                <span className="ml-auto text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
+                              )}
+                            </div>
+                            {wdStatus !== 'working' ? (
+                              <div className="px-4 py-6 text-center text-gray-400 text-sm italic">{WORKDAY_LABEL[wdStatus]}</div>
+                            ) : mopSlots.length === 0 ? (
+                              <div className="px-4 py-6 text-center text-gray-400 text-sm">Нет слотов</div>
+                            ) : (
+                              <div className="divide-y divide-gray-100">
+                                {mopSlots.map(time => {
+                                  const meeting = getMeeting(mop, expandedDay, time)
+                                  const transferred = getTransferredMeeting(mop, expandedDay, time)
+                                  return (
+                                    <div key={time} className="flex gap-3 px-4 py-3 items-start">
+                                      <span className="text-sm font-mono font-bold text-gray-500 w-12 pt-0.5 flex-shrink-0">{time}</span>
+                                      <div className="flex-1 min-w-0">
+                                        {meeting ? (
+                                          <div
+                                            onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
+                                            className={`rounded-xl border-l-4 border cursor-pointer px-3 py-2.5 ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
+                                          >
+                                            <div className="font-bold text-sm mb-1.5" style={{ color: 'var(--navy)' }}>
+                                              {meeting.client_name}
+                                              {meeting.is_repeated && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 font-semibold">Повторная</span>}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mb-1.5">
+                                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/70 border ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
+                                                {meeting.status}
+                                              </span>
+                                              {meeting.result && (
+                                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meeting.result.startsWith('Купил') ? 'bg-emerald-100 text-emerald-700' : meeting.result === 'Отказался' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                                                  {meeting.result}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="text-xs text-gray-500">{meeting.client_phone}</div>
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-1.5">
+                                            {transferred && (
+                                              <div onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
+                                                className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-2 cursor-pointer opacity-60">
+                                                <span className="text-xs font-semibold text-gray-500 line-through">{transferred.client_name}</span>
+                                                <span className="ml-2 text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">Перенесён</span>
+                                              </div>
+                                            )}
+                                            <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
+                                              className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 text-sm font-medium ${MOP_COLORS[mop].slot}`}>
+                                              <Plus size={14} /> Записать
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ДЕСКТОПНЫЙ вид — таблица */}
+                    <div className="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-x-auto">
+                      <div className="grid border-b border-gray-100"
+                        style={{ gridTemplateColumns: `72px repeat(${visibleMops.length}, 1fr)` }}>
+                        <div className="border-r border-gray-100 bg-gray-50" />
+                        {visibleMops.map(mop => (
+                          <div key={mop} className="px-4 py-3 text-center border-r border-gray-100 last:border-0 bg-gray-50">
+                            <div className="flex items-center justify-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${MOP_COLORS[mop].dot}`} />
+                              <span className="text-sm font-semibold" style={{ color: 'var(--navy)' }}>{mop}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {slots.map((time, idx) => (
+                        <div key={time}
+                          className={`grid ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} border-b border-gray-100 last:border-0`}
+                          style={{ gridTemplateColumns: `72px repeat(${visibleMops.length}, 1fr)` }}>
+                          <div className="flex items-center justify-center border-r border-gray-100 py-2.5">
+                            <span className="text-xs font-mono font-semibold text-gray-500">{time}</span>
+                          </div>
+                          {visibleMops.map(mop => {
+                            const wdStatus = getWorkDayStatus(mop, expandedDay)
+                            const hasSlot = getActiveSlots(mop, expandedDay).includes(time)
+                            const meeting = getMeeting(mop, expandedDay, time)
+                            const transferred = getTransferredMeeting(mop, expandedDay, time)
+                            return (
+                              <div key={mop} className="p-2 border-r border-gray-100 last:border-0 space-y-1.5">
+                                {wdStatus !== 'working' ? (
+                                  <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-2.5 text-center">
+                                    <span className="text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
+                                  </div>
+                                ) : !hasSlot ? (
+                                  <div className="rounded-lg py-2.5" />
+                                ) : meeting ? (
+                                  <div onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
+                                    className={`rounded-xl border-l-4 border cursor-pointer hover:shadow-md transition shadow-sm overflow-hidden ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
+                                    <div className="px-3 pt-2.5 pb-1">
+                                      <div className="text-[11px] text-gray-400 font-medium mb-1">
+                                        {expandedDay.split('-').reverse().join('.')}, {time}
+                                        {meeting.is_repeated && <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 text-[10px] font-semibold">Повторная</span>}
+                                      </div>
+                                      <div className="font-bold text-sm leading-tight mb-2" style={{ color: 'var(--navy)' }}>{meeting.client_name}</div>
+                                      <div className="flex flex-wrap gap-1 mb-2">
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} bg-white/70 border ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
+                                          {meeting.status}
+                                        </span>
+                                        {meeting.result && (
+                                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meeting.result.startsWith('Купил') ? 'bg-emerald-100 text-emerald-700' : meeting.result === 'Отказался' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+                                            {meeting.result}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs text-gray-500">{meeting.client_phone}</div>
+                                      {meeting.comment_mop && <div className="text-[11px] text-gray-400 mt-1 truncate">МОП: {meeting.comment_mop}</div>}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {transferred && (
+                                      <div onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
+                                        className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-2.5 cursor-pointer hover:bg-gray-100 transition opacity-60">
+                                        <div className="flex items-center justify-between gap-1 mb-1">
+                                          <span className="text-xs font-semibold text-gray-500 truncate line-through">{transferred.client_name}</span>
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">Перенесён</span>
+                                        </div>
+                                        <div className="text-[11px] text-gray-400">{transferred.client_phone}</div>
+                                      </div>
+                                    )}
+                                    <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
+                                      className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}>
+                                      <Plus size={13} /> Записать
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       ))}
                     </div>
-
-                    {/* Слоты */}
-                    {slots.map((time, idx) => (
-                      <div
-                        key={time}
-                        className={`grid ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} border-b border-gray-100 last:border-0`}
-                        style={{ gridTemplateColumns: `72px repeat(${visibleMops.length}, 1fr)` }}
-                      >
-                        <div className="flex items-center justify-center border-r border-gray-100 py-2.5">
-                          <span className="text-xs font-mono font-semibold text-gray-500">{time}</span>
-                        </div>
-                        {visibleMops.map(mop => {
-                          const wdStatus = getWorkDayStatus(mop, expandedDay)
-                          const hasSlot = getActiveSlots(mop, expandedDay).includes(time)
-                          const meeting = getMeeting(mop, expandedDay, time)
-                          const transferred = getTransferredMeeting(mop, expandedDay, time)
-
-                          return (
-                            <div key={mop} className="p-2 border-r border-gray-100 last:border-0 space-y-1.5">
-                              {wdStatus !== 'working' ? (
-                                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-2.5 text-center">
-                                  <span className="text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
-                                </div>
-                              ) : !hasSlot ? (
-                                <div className="rounded-lg py-2.5" />
-                              ) : meeting ? (
-                                <div
-                                  onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
-                                  className={`rounded-xl border-l-4 border cursor-pointer hover:shadow-md transition shadow-sm overflow-hidden ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
-                                >
-                                  {/* Дата + время */}
-                                  <div className="px-3 pt-2.5 pb-1">
-                                    <div className="text-[11px] text-gray-400 font-medium mb-1">
-                                      {expandedDay.split('-').reverse().join('.')}, {time}
-                                      {meeting.is_repeated && (
-                                        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 text-[10px] font-semibold">
-                                          Повторная
-                                        </span>
-                                      )}
-                                    </div>
-                                    {/* Имя клиента */}
-                                    <div className="font-bold text-sm leading-tight mb-2" style={{ color: 'var(--navy)' }}>
-                                      {meeting.client_name}
-                                    </div>
-                                    {/* Статус + результат */}
-                                    <div className="flex flex-wrap gap-1 mb-2">
-                                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} bg-white/70 border ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
-                                        {meeting.status}
-                                      </span>
-                                      {meeting.result && (
-                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                                          meeting.result === 'Купил во время встречи' || meeting.result === 'Купил после встречи'
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : meeting.result === 'Отказался'
-                                            ? 'bg-red-100 text-red-600'
-                                            : 'bg-gray-100 text-gray-600'
-                                        }`}>
-                                          {meeting.result}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {/* Телефон */}
-                                    <div className="text-xs text-gray-500">{meeting.client_phone}</div>
-                                    {/* Комментарий МОПа */}
-                                    {meeting.comment_mop && (
-                                      <div className="text-[11px] text-gray-400 mt-1 truncate">
-                                        МОП: {meeting.comment_mop}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  {/* Серая карточка перенесённой встречи */}
-                                  {transferred && (
-                                    <div
-                                      onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
-                                      className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-2.5 cursor-pointer hover:bg-gray-100 transition opacity-60"
-                                    >
-                                      <div className="flex items-center justify-between gap-1 mb-1">
-                                        <span className="text-xs font-semibold text-gray-500 truncate line-through">
-                                          {transferred.client_name}
-                                        </span>
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">
-                                          Перенесён
-                                        </span>
-                                      </div>
-                                      <div className="text-[11px] text-gray-400">{transferred.client_phone}</div>
-                                    </div>
-                                  )}
-                                  {/* Кнопка записи */}
-                                  <button
-                                    onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
-                                    className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}
-                                  >
-                                    <Plus size={13} />
-                                    Записать
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ))}
-                  </div>
+                  </>
                 )}
               </div>
             )
