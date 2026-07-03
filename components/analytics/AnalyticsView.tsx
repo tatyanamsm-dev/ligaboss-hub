@@ -41,7 +41,7 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
       setLoading(true)
       const { from, to } = ranges[period]
       const [mRes, pRes] = await Promise.all([
-        supabase.from('meetings').select('*').gte('date', from).lte('date', to),
+        supabase.from('meetings').select('*').gte('date', from).lte('date', to).eq('is_repeated', false),
         supabase.from('payments').select('*').gte('payment_date', from).lte('payment_date', to),
       ])
       setMeetings((mRes.data as Meeting[]) ?? [])

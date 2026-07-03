@@ -28,11 +28,11 @@ const MOP_COLORS: Record<MopName, { badge: string; slot: string; dot: string }> 
 }
 
 const STATUS_DOT: Record<string, string> = {
-  'Занято':    'bg-yellow-400',
-  'Проведено': 'bg-emerald-500',
-  'Не пришёл':'bg-red-400',
-  'Отмена':    'bg-gray-400',
-  'Перенос':   'bg-orange-400',
+  'Назначен':                 'bg-yellow-400',
+  'Подтвердил':               'bg-emerald-400',
+  'Перенос в день встречи':   'bg-orange-400',
+  'Перенос до дня встречи':   'bg-orange-300',
+  'Игнор в день встречи':     'bg-red-400',
 }
 
 const WORKDAY_LABEL: Record<WorkDayStatus, string> = {
