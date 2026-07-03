@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
+export const runtime = 'edge'
+
 export async function proxy(request: NextRequest) {
   return NextResponse.next()
 }
