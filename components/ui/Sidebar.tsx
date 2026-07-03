@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, BarChart3, CreditCard, TrendingUp, X } from 'lucide-react'
+import { CalendarDays, BarChart3, ShoppingBag, X } from 'lucide-react'
 
 const nav = [
   {
@@ -14,14 +14,15 @@ const nav = [
     ],
   },
   {
-    label: 'Оплаты',
-    icon: CreditCard,
+    label: 'Продажи',
+    icon: ShoppingBag,
     children: [
-      { href: '/payments', label: 'Журнал оплат' },
+      { href: '/reports', label: 'Отчёты' },
+      { href: '/payments', label: 'Оплаты' },
       { href: '/installments', label: 'Рассрочки' },
+      { href: '/summary', label: 'Итоги' },
     ],
   },
-  { href: '/summary', label: 'Итоги', icon: TrendingUp },
   { href: '/analytics', label: 'Аналитика', icon: BarChart3 },
 ]
 
