@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Trash2, ExternalLink, ArrowRightLeft } from 'lucide-react'
+import { X, Trash2, ExternalLink, ArrowRightLeft, CreditCard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Meeting, MopName, MeetingStatus, MeetingResult, ZoomSendTo } from '@/types'
+import PaymentFormModal from '@/components/payments/PaymentFormModal'
 
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
 
@@ -55,6 +56,9 @@ export default function MeetingModal({ meeting, date, time, mop, onClose, onSave
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showPayment, setShowPayment] = useState(false)
+
+  const isBought = form.result === 'Купил во время встречи' || form.result === 'Купил после встречи'
 
   // Перенос
   const [showTransfer, setShowTransfer] = useState(false)
@@ -272,6 +276,19 @@ export default function MeetingModal({ meeting, date, time, mop, onClose, onSave
               placeholder="Комментарий менеджера..." />
           </div>
 
+          {/* Кнопка оплаты */}
+          {isBought && (
+            <button
+              type="button"
+              onClick={() => setShowPayment(true)}
+              className="w-full py-2.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition"
+              style={{ backgroundColor: 'var(--gold)' }}
+            >
+              <CreditCard size={16} />
+              Оформить оплату
+            </button>
+          )}
+
           {error && <p className="text-red-500 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
           {/* Кнопки */}
@@ -302,6 +319,19 @@ export default function MeetingModal({ meeting, date, time, mop, onClose, onSave
             )}
           </div>
         </form>
+
+        {/* Форма оплаты */}
+        {showPayment && (
+          <PaymentFormModal
+            meeting={meeting}
+            prefillMop={mop}
+            prefillName={form.client_name}
+            prefillPhone={form.client_phone}
+            prefillBitrix={form.bitrix_link}
+            onClose={() => setShowPayment(false)}
+            onSaved={onSaved}
+          />
+        )}
 
         {/* Блок переноса */}
         {showTransfer && isEdit && (

@@ -17,9 +17,7 @@ export type MeetingResult =
   | null
 
 export type ZoomSendTo = 'whatsapp' | 'telegram' | 'sms'
-
 export type PaymentMethod = 'Карта' | 'Наличные' | 'Расчётный счёт' | 'Рассрочка'
-
 export type WorkDayStatus = 'working' | 'day_off' | 'sick' | 'vacation' | 'partial'
 
 export interface Profile {
@@ -55,16 +53,45 @@ export interface Meeting {
 
 export interface Payment {
   id: string
-  meeting_id: string | null
+  meeting_ref_id: string | null
   mop_name: MopName
   client_name: string
+  email: string | null
+  client_phone: string | null
+  messenger_type: string | null
+  messenger_value: string | null
+  region: string | null
+  timezone: string | null
   tariff: string
+  product: string | null
+  legal_form: string | null
+  licensing: string | null
+  certificate_type: string | null
+  course_status: string | null
+  floor_type: string | null
+  alcohol_nearby: string | null
+  network_contract: boolean
   amount: number
   payment_method: PaymentMethod
   bitrix_link: string | null
   payment_date: string
   comment: string | null
-  created_by: string
+  created_by: string | null
+  created_at: string
+}
+
+export interface Installment {
+  id: string
+  mop_name: MopName
+  client_name: string
+  client_phone: string | null
+  client_email: string | null
+  total_amount: number
+  paid_amount: number
+  installment_count: number
+  next_payment_date: string | null
+  bitrix_link: string | null
+  comment: string | null
   created_at: string
 }
 
