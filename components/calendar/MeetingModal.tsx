@@ -24,7 +24,7 @@ const RESULTS: MeetingResult[] = [
 ]
 
 const ZOOM_OPTIONS: { value: ZoomSendTo; label: string }[] = [
-  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'whatsapp', label: 'Макс' },
   { value: 'telegram', label: 'Telegram' },
   { value: 'sms', label: 'SMS' },
 ]
