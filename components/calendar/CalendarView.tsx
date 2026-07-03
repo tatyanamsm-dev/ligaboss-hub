@@ -106,7 +106,9 @@ export default function CalendarView({ userRole, userMopName }: Props) {
 
   function getMeeting(mop: MopName, date: string, time: string) {
     return meetings.find(m =>
-      m.mop_name === mop && m.date === date && m.time_slot === time + ':00' && !m.is_transferred
+      m.mop_name === mop && m.date === date && m.time_slot === time + ':00'
+      && !m.is_transferred
+      && !meetings.some(m2 => m2.original_meeting_id === m.id)
     )
   }
 
