@@ -88,6 +88,11 @@ export default function CalendarView({ userRole, userMopName }: Props) {
 
   useEffect(() => { loadData() }, [loadData])
 
+  useEffect(() => {
+    const interval = setInterval(loadData, 20000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
   function getWorkDayStatus(mop: MopName, dateStr: string): WorkDayStatus {
     const found = workDays.find(w => w.mop_name === mop && w.date === dateStr)
     if (found) return found.status
