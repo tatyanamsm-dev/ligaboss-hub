@@ -62,6 +62,7 @@ export default function PaymentFormModal({ meeting, prefillMop, prefillName, pre
     region: '',
     timezone: 'МСК (UTC+3) — Москва, европейская часть',
     product: '',
+    tariff: '',
     legal_form: '',
     licensing: '',
     certificate_type: '',
@@ -100,7 +101,7 @@ export default function PaymentFormModal({ meeting, prefillMop, prefillName, pre
       messenger_value: form.messenger_type === 'telegram' ? (form.messenger_value || null) : null,
       region: form.region || null,
       timezone: form.timezone || null,
-      tariff: form.product || '—',
+      tariff: form.tariff || form.product || '—',
       product: form.product || null,
       legal_form: form.legal_form || null,
       licensing: form.licensing || null,
@@ -213,10 +214,16 @@ export default function PaymentFormModal({ meeting, prefillMop, prefillName, pre
               Что купил клиент
             </h4>
             <div>
-              <label className="label">Продукт / тариф *</label>
+              <label className="label">Продукт / курс *</label>
               <input className="input" required value={form.product}
-                onChange={e => set('product', e.target.value)} placeholder="Название курса или тарифа" />
+                onChange={e => set('product', e.target.value)} placeholder="Название курса" />
             </div>
+            <RadioGroup
+              label="Тариф"
+              options={['Базовый', 'Оптимальный', 'Максимальный']}
+              value={form.tariff}
+              onChange={v => set('tariff', v)}
+            />
 
             <div className="mt-4 space-y-4">
               <RadioGroup
