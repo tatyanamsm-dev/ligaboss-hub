@@ -27,12 +27,12 @@ const MOP_COLORS: Record<MopName, { badge: string; slot: string; dot: string }> 
   },
 }
 
-const STATUS_DOT: Record<string, string> = {
-  'Назначен':                 'bg-yellow-400',
-  'Подтвердил':               'bg-emerald-400',
-  'Перенос в день встречи':   'bg-orange-400',
-  'Перенос до дня встречи':   'bg-orange-300',
-  'Игнор в день встречи':     'bg-red-400',
+const STATUS_CONFIG: Record<string, { dot: string; bg: string; border: string; text: string }> = {
+  'Назначен':                 { dot: 'bg-yellow-400',  bg: 'bg-yellow-50',  border: 'border-yellow-300',  text: 'text-yellow-700' },
+  'Подтвердил':               { dot: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700' },
+  'Перенос в день встречи':   { dot: 'bg-orange-400',  bg: 'bg-orange-50',  border: 'border-orange-300',  text: 'text-orange-700' },
+  'Перенос до дня встречи':   { dot: 'bg-orange-300',  bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-600' },
+  'Игнор в день встречи':     { dot: 'bg-red-400',     bg: 'bg-red-50',     border: 'border-red-300',     text: 'text-red-700' },
 }
 
 const WORKDAY_LABEL: Record<WorkDayStatus, string> = {
@@ -105,11 +105,13 @@ export default function CalendarView({ userRole, userMopName }: Props) {
   }
 
   function getMeeting(mop: MopName, date: string, time: string) {
-    return meetings.find(m => m.mop_name === mop && m.date === date && m.time_slot === time + ':00')
+    return meetings.find(m =>
+      m.mop_name === mop && m.date === date && m.time_slot === time + ':00' && !m.is_transferred
+    )
   }
 
   function getMeetingCount(dateStr: string) {
-    return meetings.filter(m => m.date === dateStr).length
+    return meetings.filter(m => m.date === dateStr && !m.is_transferred).length
   }
 
   function getAllSlotsForDay(dateStr: string): string[] {
@@ -254,20 +256,42 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                               ) : meeting ? (
                                 <div
                                   onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
-                                  className="rounded-xl border p-3 cursor-pointer hover:shadow-md transition bg-white border-gray-200 shadow-sm"
+                                  className={`rounded-xl border-l-4 border p-3 cursor-pointer hover:shadow-md transition shadow-sm ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
+                                  style={{ borderLeftColor: STATUS_CONFIG[meeting.status]?.dot.replace('bg-', '') }}
                                 >
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[meeting.status] ?? 'bg-gray-300'}`} />
-                                    <span className="text-sm font-semibold truncate" style={{ color: 'var(--navy)' }}>{meeting.client_name}</span>
+                                  {/* Имя + бейджи */}
+                                  <div className="flex items-start justify-between gap-1 mb-1.5">
+                                    <span className="text-sm font-bold truncate" style={{ color: 'var(--navy)' }}>
+                                      {meeting.client_name}
+                                    </span>
+                                    <div className="flex gap-1 flex-shrink-0">
+                                      {meeting.is_repeated && (
+                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                          Повторная
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-gray-500">{meeting.status}</div>
+                                  {/* Статус */}
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_CONFIG[meeting.status]?.dot ?? 'bg-gray-300'}`} />
+                                    <span className={`text-xs font-medium ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'}`}>
+                                      {meeting.status}
+                                    </span>
+                                  </div>
+                                  {/* Телефон */}
+                                  <div className="text-xs text-gray-500">{meeting.client_phone}</div>
+                                  {/* Результат */}
                                   {meeting.result && (
-                                    <div className={`text-xs font-semibold mt-1 ${meeting.result === 'Продажа' ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    <div className={`text-xs font-semibold mt-1.5 px-2 py-0.5 rounded-full inline-block ${
+                                      meeting.result === 'Купил во время встречи' || meeting.result === 'Купил после встречи'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : meeting.result === 'Отказался'
+                                        ? 'bg-red-100 text-red-600'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}>
                                       {meeting.result}
                                     </div>
-                                  )}
-                                  {meeting.client_phone && (
-                                    <div className="text-xs text-gray-400 mt-0.5">{meeting.client_phone}</div>
                                   )}
                                 </div>
                               ) : (

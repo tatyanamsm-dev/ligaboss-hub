@@ -137,7 +137,7 @@ export default function MeetingModal({ meeting, date, time, mop, onClose, onSave
     setError('')
 
     await supabase.from('meetings')
-      .update({ status: 'Перенос до дня встречи' })
+      .update({ status: 'Перенос до дня встречи', is_transferred: true })
       .eq('id', meeting.id)
 
     const { error: err } = await supabase.from('meetings').insert({

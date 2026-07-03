@@ -46,6 +46,7 @@ export interface Meeting {
   comment_lidorub: string | null
   comment_mop: string | null
   is_repeated: boolean
+  is_transferred: boolean
   original_meeting_id: string | null
   created_by: string | null
   created_at: string
