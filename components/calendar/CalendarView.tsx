@@ -266,43 +266,48 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                               ) : meeting ? (
                                 <div
                                   onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
-                                  className={`rounded-xl border-l-4 border p-3 cursor-pointer hover:shadow-md transition shadow-sm ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
-                                  style={{ borderLeftColor: STATUS_CONFIG[meeting.status]?.dot.replace('bg-', '') }}
+                                  className={`rounded-xl border-l-4 border cursor-pointer hover:shadow-md transition shadow-sm overflow-hidden ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
                                 >
-                                  {/* Имя + бейджи */}
-                                  <div className="flex items-start justify-between gap-1 mb-1.5">
-                                    <span className="text-sm font-bold truncate" style={{ color: 'var(--navy)' }}>
-                                      {meeting.client_name}
-                                    </span>
-                                    <div className="flex gap-1 flex-shrink-0">
+                                  {/* Дата + время */}
+                                  <div className="px-3 pt-2.5 pb-1">
+                                    <div className="text-[11px] text-gray-400 font-medium mb-1">
+                                      {expandedDay.split('-').reverse().join('.')}, {time}
                                       {meeting.is_repeated && (
-                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 text-[10px] font-semibold">
                                           Повторная
                                         </span>
                                       )}
                                     </div>
-                                  </div>
-                                  {/* Статус */}
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_CONFIG[meeting.status]?.dot ?? 'bg-gray-300'}`} />
-                                    <span className={`text-xs font-medium ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'}`}>
-                                      {meeting.status}
-                                    </span>
-                                  </div>
-                                  {/* Телефон */}
-                                  <div className="text-xs text-gray-500">{meeting.client_phone}</div>
-                                  {/* Результат */}
-                                  {meeting.result && (
-                                    <div className={`text-xs font-semibold mt-1.5 px-2 py-0.5 rounded-full inline-block ${
-                                      meeting.result === 'Купил во время встречи' || meeting.result === 'Купил после встречи'
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : meeting.result === 'Отказался'
-                                        ? 'bg-red-100 text-red-600'
-                                        : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                      {meeting.result}
+                                    {/* Имя клиента */}
+                                    <div className="font-bold text-sm leading-tight mb-2" style={{ color: 'var(--navy)' }}>
+                                      {meeting.client_name}
                                     </div>
-                                  )}
+                                    {/* Статус + результат */}
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} bg-white/70 border ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
+                                        {meeting.status}
+                                      </span>
+                                      {meeting.result && (
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                                          meeting.result === 'Купил во время встречи' || meeting.result === 'Купил после встречи'
+                                            ? 'bg-emerald-100 text-emerald-700'
+                                            : meeting.result === 'Отказался'
+                                            ? 'bg-red-100 text-red-600'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                          {meeting.result}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {/* Телефон */}
+                                    <div className="text-xs text-gray-500">{meeting.client_phone}</div>
+                                    {/* Комментарий МОПа */}
+                                    {meeting.comment_mop && (
+                                      <div className="text-[11px] text-gray-400 mt-1 truncate">
+                                        МОП: {meeting.comment_mop}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               ) : (
                                 <>
