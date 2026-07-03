@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { Plus, ExternalLink, Trash2, Download, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfWeekMon, addDays, startOfMonth, endOfMonth } from '@/lib/dateUtils'
-import type { Payment, MopName, UserRole, PaymentMethod } from '@/types'
+import type { Payment, MopName, UserRole } from '@/types'
+import PaymentFormModal from './PaymentFormModal'
 
 function exportToExcel(payments: Payment[]) {
   const headers = ['Дата','Менеджер','Клиент','Телефон','Email','Тариф','Сумма','Способ оплаты','Регион','Форма орг.','Лицензирование','Bitrix','Комментарий']
@@ -30,7 +31,6 @@ function exportToExcel(payments: Payment[]) {
 
 type Period = 'week' | 'month' | 'all'
 const MOPS: MopName[] = ['Владимир', 'Анастасия', 'Ксения']
-const METHODS: PaymentMethod[] = ['Карта', 'Наличные', 'Расчётный счёт', 'Рассрочка']
 
 interface Props {
   userRole: UserRole
@@ -181,121 +181,12 @@ export default function PaymentsView({ userRole, userMopName }: Props) {
       )}
 
       {showForm && (
-        <PaymentForm
-          userRole={userRole}
-          userMopName={userMopName}
-          mops={MOPS}
-          methods={METHODS}
+        <PaymentFormModal
+          prefillMop={userRole === 'mop' ? (userMopName ?? undefined) : undefined}
           onClose={() => setShowForm(false)}
           onSaved={load}
         />
       )}
-    </div>
-  )
-}
-
-function PaymentForm({
-  userRole,
-  userMopName,
-  mops,
-  methods,
-  onClose,
-  onSaved,
-}: {
-  userRole: UserRole
-  userMopName: MopName | null
-  mops: MopName[]
-  methods: PaymentMethod[]
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const supabase = createClient()
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({
-    mop_name: userRole === 'mop' ? (userMopName ?? mops[0]) : mops[0],
-    client_name: '',
-    tariff: '',
-    amount: '',
-    payment_method: methods[0] as PaymentMethod,
-    bitrix_link: '',
-    payment_date: formatDate(new Date()),
-    comment: '',
-  })
-
-  function set(field: string, value: string) {
-    setForm(f => ({ ...f, [field]: value }))
-  }
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('payments').insert({
-      ...form,
-      amount: parseFloat(form.amount),
-      bitrix_link: form.bitrix_link || null,
-      comment: form.comment || null,
-      created_by: user!.id,
-    })
-    onSaved()
-    onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="font-semibold">Новая оплата</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-500">✕</button>
-        </div>
-        <form onSubmit={handleSave} className="p-5 space-y-4">
-          {userRole === 'rop' && (
-            <div>
-              <label className="label">Менеджер</label>
-              <select className="input" value={form.mop_name} onChange={e => set('mop_name', e.target.value)}>
-                {mops.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="label">Клиент *</label>
-            <input className="input" required value={form.client_name} onChange={e => set('client_name', e.target.value)} placeholder="Иванов Иван" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Тариф *</label>
-              <input className="input" required value={form.tariff} onChange={e => set('tariff', e.target.value)} placeholder="Базовый" />
-            </div>
-            <div>
-              <label className="label">Сумма, ₽ *</label>
-              <input className="input" required type="number" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="50000" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Способ оплаты</label>
-              <select className="input" value={form.payment_method} onChange={e => set('payment_method', e.target.value)}>
-                {methods.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Дата</label>
-              <input className="input" type="date" value={form.payment_date} onChange={e => set('payment_date', e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="label">Ссылка Bitrix24</label>
-            <input className="input" value={form.bitrix_link} onChange={e => set('bitrix_link', e.target.value)} placeholder="https://..." />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? 'Сохраняем...' : 'Сохранить'}
-          </button>
-        </form>
-      </div>
     </div>
   )
 }
