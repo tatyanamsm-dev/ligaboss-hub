@@ -78,18 +78,17 @@ export default function MeetingModal({ meeting, date, time, mop, onClose, onSave
     setLoadingSlots(true)
     const dow = new Date(transferDate + 'T00:00:00').getDay()
     const dayOfWeek = dow === 0 ? 7 : dow
-    supabase
-      .from('mop_time_slots')
-      .select('*')
-      .eq('mop_name', transferMop)
-      .eq('day_of_week', dayOfWeek)
-      .eq('active', true)
-      .then(({ data }) => {
-        const slots = (data ?? []).map((s: { time_start: string }) => s.time_start.slice(0, 5)).sort()
-        setTransferSlots(slots)
-        setTransferTime(slots[0] ?? '')
-        setLoadingSlots(false)
-      })
+    Promise.all([
+      supabase.from('mop_time_slots').select('time_start').eq('mop_name', transferMop).eq('day_of_week', dayOfWeek).eq('active', true),
+      supabase.from('mop_extra_slots').select('time_start').eq('mop_name', transferMop).eq('date', transferDate),
+    ]).then(([regular, extra]) => {
+      const regularTimes = (regular.data ?? []).map((s: { time_start: string }) => s.time_start.slice(0, 5))
+      const extraTimes = (extra.data ?? []).map((s: { time_start: string }) => s.time_start.slice(0, 5))
+      const slots = [...new Set([...regularTimes, ...extraTimes])].sort()
+      setTransferSlots(slots)
+      setTransferTime(slots[0] ?? '')
+      setLoadingSlots(false)
+    })
   }, [showTransfer, transferMop, transferDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave(e: React.FormEvent) {

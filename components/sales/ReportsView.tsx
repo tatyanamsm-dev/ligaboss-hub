@@ -18,6 +18,7 @@ export default function ReportsView({ userRole, userMopName }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [slots, setSlots] = useState<MopTimeSlot[]>([])
+  const [extraSlots, setExtraSlots] = useState<{ mop_name: string; date: string; time_start: string }[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const visibleMops = userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])
@@ -45,14 +46,16 @@ export default function ReportsView({ userRole, userMopName }: Props) {
     async function load() {
       setLoading(true)
       const { from, to } = getRange()
-      const [mRes, pRes, sRes] = await Promise.all([
+      const [mRes, pRes, sRes, eRes] = await Promise.all([
         supabase.from('meetings').select('*').in('mop_name', visibleMops).gte('date', from).lte('date', to),
         supabase.from('payments').select('*').in('mop_name', visibleMops).gte('payment_date', from).lte('payment_date', to),
         supabase.from('mop_time_slots').select('*').in('mop_name', visibleMops).eq('active', true),
+        supabase.from('mop_extra_slots').select('mop_name,date,time_start').in('mop_name', visibleMops).gte('date', from).lte('date', to),
       ])
       setMeetings((mRes.data as Meeting[]) ?? [])
       setPayments((pRes.data as Payment[]) ?? [])
       setSlots((sRes.data as MopTimeSlot[]) ?? [])
+      setExtraSlots((eRes.data as { mop_name: string; date: string; time_start: string }[]) ?? [])
       setLoading(false)
     }
     load()
@@ -62,11 +65,13 @@ export default function ReportsView({ userRole, userMopName }: Props) {
   // Группируем встречи по датам
   const dates = [...new Set(meetings.map(m => m.date))].sort((a, b) => b.localeCompare(a))
 
-  // Активных слотов в день для МОПа
+  // Активных слотов в день для МОПа (обычные + подработки)
   function getSlotsForMopDay(mop: MopName, dateStr: string) {
     const dow = new Date(dateStr + 'T00:00:00').getDay()
     const dayOfWeek = dow === 0 ? 7 : dow
-    return slots.filter(s => s.mop_name === mop && s.day_of_week === dayOfWeek).length
+    const regularTimes = slots.filter(s => s.mop_name === mop && s.day_of_week === dayOfWeek).map(s => s.time_start.slice(0, 5))
+    const extraTimes = extraSlots.filter(s => s.mop_name === mop && s.date === dateStr).map(s => s.time_start.slice(0, 5))
+    return new Set([...regularTimes, ...extraTimes]).size
   }
 
   // Итого KPI

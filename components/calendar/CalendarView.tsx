@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Pencil, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate, startOfMonth, endOfMonth } from '@/lib/dateUtils'
 import type { Meeting, MopName, UserRole, MopWorkDay, MopTimeSlot, WorkDayStatus } from '@/types'
@@ -27,12 +27,42 @@ const MOP_COLORS: Record<MopName, { badge: string; slot: string; dot: string }> 
   },
 }
 
-const STATUS_CONFIG: Record<string, { dot: string; bg: string; border: string; text: string }> = {
-  'Назначен':                 { dot: 'bg-yellow-400',  bg: 'bg-yellow-50',  border: 'border-yellow-300',  text: 'text-yellow-700' },
-  'Подтвердил':               { dot: 'bg-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700' },
-  'Перенос в день встречи':   { dot: 'bg-orange-400',  bg: 'bg-orange-50',  border: 'border-orange-300',  text: 'text-orange-700' },
-  'Перенос до дня встречи':   { dot: 'bg-orange-300',  bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-600' },
-  'Игнор в день встречи':     { dot: 'bg-red-400',     bg: 'bg-red-50',     border: 'border-red-300',     text: 'text-red-700' },
+const STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
+  'Назначен':                   { dot: 'bg-gray-400',    label: 'text-gray-600' },
+  'Подтвердил':                 { dot: 'bg-blue-500',    label: 'text-blue-700' },
+  'Перенос в день встречи':     { dot: 'bg-orange-400',  label: 'text-orange-700' },
+  'Перенос до дня встречи':     { dot: 'bg-orange-300',  label: 'text-orange-600' },
+  'Игнор в день встречи':       { dot: 'bg-red-400',     label: 'text-red-700' },
+}
+
+function getCardColor(meeting: Meeting): { bg: string; border: string; bar: string } {
+  const r = meeting.result
+  const s = meeting.status
+  if (r === 'Купил во время встречи' || r === 'Купил после встречи')
+    return { bg: '#f0fdf4', border: '#86efac', bar: '#22c55e' }
+  if (r === 'Отказался')
+    return { bg: '#fff1f2', border: '#fca5a5', bar: '#ef4444' }
+  if (r === 'Думает' || r === 'Ожидает КП')
+    return { bg: '#fefce8', border: '#fde047', bar: '#eab308' }
+  if (s === 'Перенос в день встречи' || s === 'Перенос до дня встречи')
+    return { bg: '#fff7ed', border: '#fdba74', bar: '#f97316' }
+  if (s === 'Игнор в день встречи')
+    return { bg: '#fff1f2', border: '#fca5a5', bar: '#ef4444' }
+  return { bg: '#ffffff', border: '#e5e7eb', bar: '#d1d5db' }
+}
+
+function getResultStyle(result: string | null): React.CSSProperties {
+  if (!result) return {}
+  if (result.startsWith('Купил')) return { background: '#dcfce7', color: '#15803d' }
+  if (result === 'Отказался') return { background: '#fee2e2', color: '#dc2626' }
+  return { background: '#fef9c3', color: '#a16207' }
+}
+
+function getStatusStyle(status: string): React.CSSProperties {
+  if (status.startsWith('Перенос')) return { background: '#ffedd5', color: '#c2410c' }
+  if (status === 'Игнор в день встречи') return { background: '#fee2e2', color: '#dc2626' }
+  if (status === 'Подтвердил') return { background: '#dbeafe', color: '#1d4ed8' }
+  return { background: '#f3f4f6', color: '#6b7280' }
 }
 
 const WORKDAY_LABEL: Record<WorkDayStatus, string> = {
@@ -58,6 +88,7 @@ export default function CalendarView({ userRole, userMopName }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [workDays, setWorkDays] = useState<MopWorkDay[]>([])
   const [timeSlots, setTimeSlots] = useState<MopTimeSlot[]>([])
+  const [extraSlots, setExtraSlots] = useState<{ mop_name: string; date: string; time_start: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{
     open: boolean; meeting?: Meeting; date?: string; time?: string; mop?: MopName
@@ -72,24 +103,31 @@ export default function CalendarView({ userRole, userMopName }: Props) {
   let d = new Date(monthStart)
   while (d <= monthEnd) { days.push(new Date(d)); d.setDate(d.getDate() + 1) }
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    const [mRes, wRes, sRes] = await Promise.all([
-      supabase.from('meetings').select('*').gte('date', formatDate(monthStart)).lte('date', formatDate(monthEnd)),
-      supabase.from('mop_work_days').select('*').gte('date', formatDate(monthStart)).lte('date', formatDate(monthEnd)),
-      supabase.from('mop_time_slots').select('*').in('mop_name', visibleMops),
-    ])
-    setMeetings((mRes.data as Meeting[]) ?? [])
-    setWorkDays((wRes.data as MopWorkDay[]) ?? [])
-    setTimeSlots((sRes.data as MopTimeSlot[]) ?? [])
-    setLoading(false)
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const from = formatDate(monthStart)
+      const to = formatDate(monthEnd)
+      const [mRes, wRes, sRes, eRes] = await Promise.all([
+        supabase.from('meetings').select('*').gte('date', from).lte('date', to),
+        supabase.from('mop_work_days').select('*').gte('date', from).lte('date', to),
+        supabase.from('mop_time_slots').select('*').in('mop_name', visibleMops),
+        supabase.from('mop_extra_slots').select('*').in('mop_name', visibleMops).gte('date', from).lte('date', to),
+      ])
+      setMeetings((mRes.data as Meeting[]) ?? [])
+      setWorkDays((wRes.data as MopWorkDay[]) ?? [])
+      setTimeSlots((sRes.data as MopTimeSlot[]) ?? [])
+      setExtraSlots((eRes.data as { mop_name: string; date: string; time_start: string }[]) ?? [])
+    } finally {
+      if (!silent) setLoading(false)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseDate])
 
   useEffect(() => { loadData() }, [loadData])
 
   useEffect(() => {
-    const interval = setInterval(loadData, 20000)
+    const interval = setInterval(() => loadData(true), 20000)
     return () => clearInterval(interval)
   }, [loadData])
 
@@ -103,34 +141,45 @@ export default function CalendarView({ userRole, userMopName }: Props) {
   function getActiveSlots(mop: MopName, dateStr: string): string[] {
     const dow = new Date(dateStr + 'T00:00:00').getDay()
     const dayOfWeek = dow === 0 ? 7 : dow
-    return timeSlots
+    const regular = timeSlots
       .filter(s => s.mop_name === mop && s.day_of_week === dayOfWeek && s.active)
       .map(s => s.time_start.slice(0, 5))
-      .sort()
+    const extra = extraSlots
+      .filter(s => s.mop_name === mop && s.date === dateStr)
+      .map(s => s.time_start.slice(0, 5))
+    return [...new Set([...regular, ...extra])].sort()
   }
 
-  function getMeeting(mop: MopName, date: string, time: string) {
-    return meetings.find(m =>
-      m.mop_name === mop && m.date === date && m.time_slot === time + ':00'
-      && !m.is_transferred
-      && !meetings.some(m2 => m2.original_meeting_id === m.id)
-    )
+  function isGhost(m: Meeting) {
+    return m.is_transferred
+      || m.status === 'Игнор в день встречи'
+      || m.status === 'Перенос до дня встречи'
+      || m.status === 'Перенос в день встречи'
+      || meetings.some(m2 => m2.original_meeting_id === m.id)
   }
 
-  function getTransferredMeeting(mop: MopName, date: string, time: string) {
+  function getActiveMeeting(mop: MopName, date: string, time: string) {
     return meetings.find(m =>
-      m.mop_name === mop && m.date === date && m.time_slot === time + ':00'
-      && (m.is_transferred || meetings.some(m2 => m2.original_meeting_id === m.id))
+      m.mop_name === mop && m.date === date && m.time_slot === time + ':00' && !isGhost(m)
+    ) ?? null
+  }
+
+  function getGhostMeetings(mop: MopName, date: string, time: string) {
+    return meetings.filter(m =>
+      m.mop_name === mop && m.date === date && m.time_slot === time + ':00' && isGhost(m)
     )
   }
 
   function getMeetingCount(dateStr: string) {
-    return meetings.filter(m => m.date === dateStr && !m.is_transferred).length
+    return meetings.filter(m => m.date === dateStr && !isGhost(m)).length
   }
 
   function getAllSlotsForDay(dateStr: string): string[] {
-    const all = visibleMops.flatMap(mop => getActiveSlots(mop, dateStr))
-    return [...new Set(all)].sort()
+    const fromSlots = visibleMops.flatMap(mop => getActiveSlots(mop, dateStr))
+    const fromMeetings = meetings
+      .filter(m => m.date === dateStr && visibleMops.includes(m.mop_name as MopName))
+      .map(m => m.time_slot.slice(0, 5))
+    return [...new Set([...fromSlots, ...fromMeetings])].sort()
   }
 
   const todayStr = formatDate(new Date())
@@ -233,8 +282,14 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                     {/* МОБИЛЬНЫЙ вид — МОПы вертикально */}
                     <div className="md:hidden space-y-4">
                       {visibleMops.map(mop => {
-                        const mopSlots = getActiveSlots(mop, expandedDay)
+                        const activeSlots = getActiveSlots(mop, expandedDay)
+                        const meetingTimes = meetings
+                          .filter(m => m.mop_name === mop && m.date === expandedDay)
+                          .map(m => m.time_slot.slice(0, 5))
+                        const mopSlots = [...new Set([...activeSlots, ...meetingTimes])].sort()
                         const wdStatus = getWorkDayStatus(mop, expandedDay)
+                        const hasAnyExtraSlot = extraSlots.some(s => s.mop_name === mop && s.date === expandedDay)
+                        const effectivelyWorking = wdStatus === 'working' || hasAnyExtraSlot
                         return (
                           <div key={mop} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100" style={{ backgroundColor: 'var(--cream)' }}>
@@ -244,54 +299,86 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                                 <span className="ml-auto text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
                               )}
                             </div>
-                            {wdStatus !== 'working' ? (
+                            {!effectivelyWorking ? (
                               <div className="px-4 py-6 text-center text-gray-400 text-sm italic">{WORKDAY_LABEL[wdStatus]}</div>
                             ) : mopSlots.length === 0 ? (
                               <div className="px-4 py-6 text-center text-gray-400 text-sm">Нет слотов</div>
                             ) : (
                               <div className="divide-y divide-gray-100">
                                 {mopSlots.map(time => {
-                                  const meeting = getMeeting(mop, expandedDay, time)
-                                  const transferred = getTransferredMeeting(mop, expandedDay, time)
+                                  const activeMeeting = getActiveMeeting(mop, expandedDay, time)
+                                  const ghosts = getGhostMeetings(mop, expandedDay, time)
                                   return (
                                     <div key={time} className="flex gap-3 px-4 py-3 items-start">
                                       <span className="text-sm font-mono font-bold text-gray-500 w-12 pt-0.5 flex-shrink-0">{time}</span>
-                                      <div className="flex-1 min-w-0">
-                                        {meeting ? (
+                                      <div className="flex-1 min-w-0 space-y-1.5">
+                                        {ghosts.map(g => (
+                                          <div key={g.id} onClick={() => setModal({ open: true, meeting: g, date: expandedDay, time, mop })}
+                                            className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-2 cursor-pointer opacity-60">
+                                            <span className="text-xs font-semibold text-gray-500 line-through">{g.client_name}</span>
+                                            <span className="ml-2 text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                              {g.is_transferred ? 'Перенесён' : g.status}
+                                            </span>
+                                          </div>
+                                        ))}
+                                        {activeMeeting ? (
+                                          (() => { const c = getCardColor(activeMeeting); return (
                                           <div
-                                            onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
-                                            className={`rounded-xl border-l-4 border cursor-pointer px-3 py-2.5 ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}
+                                            onClick={() => setModal({ open: true, meeting: activeMeeting, date: expandedDay, time, mop })}
+                                            className="rounded-xl border cursor-pointer flex gap-2.5"
+                                            style={{ background: c.bg, borderColor: c.border }}
                                           >
-                                            <div className="font-bold text-sm mb-1.5" style={{ color: 'var(--navy)' }}>
-                                              {meeting.client_name}
-                                              {meeting.is_repeated && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 font-semibold">Повторная</span>}
-                                            </div>
-                                            <div className="flex flex-wrap gap-1 mb-1.5">
-                                              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/70 border ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
-                                                {meeting.status}
-                                              </span>
-                                              {meeting.result && (
-                                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meeting.result.startsWith('Купил') ? 'bg-emerald-100 text-emerald-700' : meeting.result === 'Отказался' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
-                                                  {meeting.result}
+                                            <div className="w-1 rounded-l-xl flex-shrink-0 self-stretch" style={{ background: c.bar }} />
+                                            <div className="flex-1 min-w-0 py-2.5 pr-2.5 space-y-1.5">
+                                              <div>
+                                                <div className="font-bold text-sm" style={{ color: 'var(--navy)' }}>
+                                                  {activeMeeting.client_name}
+                                                  {activeMeeting.is_repeated && <span className="ml-2 text-[9px] px-1 py-0.5 rounded-full font-semibold" style={{ background: '#fef3c7', color: '#92400e' }}>Повторная</span>}
+                                                </div>
+                                                <div className="text-[11px] text-gray-500">{activeMeeting.client_phone}</div>
+                                              </div>
+                                              <div>
+                                                <span className="text-[10px] text-gray-400">Статус: </span>
+                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={getStatusStyle(activeMeeting.status)}>
+                                                  {activeMeeting.status}
                                                 </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-[10px] text-gray-400">Результат: </span>
+                                                {activeMeeting.result ? (
+                                                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={getResultStyle(activeMeeting.result)}>
+                                                    {activeMeeting.result}
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-[11px] text-gray-300 italic">не указан</span>
+                                                )}
+                                              </div>
+                                              <div className="rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                                                <span className="text-[10px] text-gray-400">Комментарий: </span>
+                                                <span className="text-[11px] text-gray-500">
+                                                  {activeMeeting.comment_mop || <span className="italic text-gray-300">не заполнен</span>}
+                                                </span>
+                                              </div>
+                                              {activeMeeting.bitrix_link && (
+                                                <a
+                                                  href={activeMeeting.bitrix_link}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={e => e.stopPropagation()}
+                                                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg w-fit"
+                                                  style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                                                >
+                                                  <ExternalLink size={10} /> Bitrix24
+                                                </a>
                                               )}
                                             </div>
-                                            <div className="text-xs text-gray-500">{meeting.client_phone}</div>
                                           </div>
+                                          )})()
                                         ) : (
-                                          <div className="space-y-1.5">
-                                            {transferred && (
-                                              <div onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
-                                                className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-2 cursor-pointer opacity-60">
-                                                <span className="text-xs font-semibold text-gray-500 line-through">{transferred.client_name}</span>
-                                                <span className="ml-2 text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">Перенесён</span>
-                                              </div>
-                                            )}
-                                            <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
-                                              className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 text-sm font-medium ${MOP_COLORS[mop].slot}`}>
-                                              <Plus size={14} /> Записать
-                                            </button>
-                                          </div>
+                                          <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
+                                            className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 text-sm font-medium ${MOP_COLORS[mop].slot}`}>
+                                            <Plus size={14} /> Записать
+                                          </button>
                                         )}
                                       </div>
                                     </div>
@@ -327,56 +414,125 @@ export default function CalendarView({ userRole, userMopName }: Props) {
                           </div>
                           {visibleMops.map(mop => {
                             const wdStatus = getWorkDayStatus(mop, expandedDay)
+                            const hasExtraSlot = extraSlots.some(s => s.mop_name === mop && s.date === expandedDay && s.time_start.slice(0,5) === time)
                             const hasSlot = getActiveSlots(mop, expandedDay).includes(time)
-                            const meeting = getMeeting(mop, expandedDay, time)
-                            const transferred = getTransferredMeeting(mop, expandedDay, time)
+                            const activeMeeting = getActiveMeeting(mop, expandedDay, time)
+                            const ghosts = getGhostMeetings(mop, expandedDay, time)
+                            const isOffWithoutExtra = wdStatus !== 'working' && !hasExtraSlot
+                            const forceMajeurMeeting = isOffWithoutExtra
+                              ? meetings.find(m => m.mop_name === mop && m.date === expandedDay && m.time_slot === time + ':00' && !isGhost(m))
+                              : undefined
                             return (
                               <div key={mop} className="p-2 border-r border-gray-100 last:border-0 space-y-1.5">
-                                {wdStatus !== 'working' ? (
+                                {isOffWithoutExtra && forceMajeurMeeting ? (
+                                  <div
+                                    className="rounded-xl border-2 cursor-pointer p-2 space-y-1"
+                                    style={{ borderColor: '#ef4444', background: '#fff1f2' }}
+                                    onClick={() => setModal({ open: true, meeting: forceMajeurMeeting, date: expandedDay, time, mop })}
+                                  >
+                                    <div className="text-[10px] font-bold text-red-600 uppercase tracking-wide">⚠ Требует переноса</div>
+                                    <div className="text-xs font-semibold text-red-700">{forceMajeurMeeting.client_name}</div>
+                                    <div className="text-[10px] text-red-500">{forceMajeurMeeting.client_phone}</div>
+                                  </div>
+                                ) : isOffWithoutExtra ? (
                                   <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 py-2.5 text-center">
                                     <span className="text-xs text-gray-400 italic">{WORKDAY_LABEL[wdStatus]}</span>
                                   </div>
                                 ) : !hasSlot ? (
-                                  <div className="rounded-lg py-2.5" />
-                                ) : meeting ? (
-                                  <div onClick={() => setModal({ open: true, meeting, date: expandedDay, time, mop })}
-                                    className={`rounded-xl border-l-4 border cursor-pointer hover:shadow-md transition shadow-sm overflow-hidden ${STATUS_CONFIG[meeting.status]?.bg ?? 'bg-white'} ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
-                                    <div className="px-3 pt-2.5 pb-1">
-                                      <div className="text-[11px] text-gray-400 font-medium mb-1">
-                                        {expandedDay.split('-').reverse().join('.')}, {time}
-                                        {meeting.is_repeated && <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 text-[10px] font-semibold">Повторная</span>}
-                                      </div>
-                                      <div className="font-bold text-sm leading-tight mb-2" style={{ color: 'var(--navy)' }}>{meeting.client_name}</div>
-                                      <div className="flex flex-wrap gap-1 mb-2">
-                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_CONFIG[meeting.status]?.text ?? 'text-gray-500'} bg-white/70 border ${STATUS_CONFIG[meeting.status]?.border ?? 'border-gray-200'}`}>
-                                          {meeting.status}
-                                        </span>
-                                        {meeting.result && (
-                                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meeting.result.startsWith('Купил') ? 'bg-emerald-100 text-emerald-700' : meeting.result === 'Отказался' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
-                                            {meeting.result}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="text-xs text-gray-500">{meeting.client_phone}</div>
-                                      {meeting.comment_mop && <div className="text-[11px] text-gray-400 mt-1 truncate">МОП: {meeting.comment_mop}</div>}
+                                  activeMeeting ? (
+                                    <div
+                                      className="rounded-xl border-2 cursor-pointer p-2 space-y-1"
+                                      style={{ borderColor: '#ef4444', background: '#fff1f2' }}
+                                      onClick={() => setModal({ open: true, meeting: activeMeeting, date: expandedDay, time, mop })}
+                                    >
+                                      <div className="text-[10px] font-bold text-red-600 uppercase tracking-wide">⚠ Слот не активен</div>
+                                      <div className="text-xs font-semibold text-red-700">{activeMeeting.client_name}</div>
                                     </div>
-                                  </div>
+                                  ) : (
+                                    <div className="rounded-lg py-2.5" />
+                                  )
                                 ) : (
                                   <>
-                                    {transferred && (
-                                      <div onClick={() => setModal({ open: true, meeting: transferred, date: expandedDay, time, mop })}
+                                    {ghosts.map(g => (
+                                      <div key={g.id} onClick={() => setModal({ open: true, meeting: g, date: expandedDay, time, mop })}
                                         className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-2.5 cursor-pointer hover:bg-gray-100 transition opacity-60">
                                         <div className="flex items-center justify-between gap-1 mb-1">
-                                          <span className="text-xs font-semibold text-gray-500 truncate line-through">{transferred.client_name}</span>
-                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">Перенесён</span>
+                                          <span className="text-xs font-semibold text-gray-500 truncate line-through">{g.client_name}</span>
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 flex-shrink-0">
+                                            {g.is_transferred ? 'Перенесён' : g.status}
+                                          </span>
                                         </div>
-                                        <div className="text-[11px] text-gray-400">{transferred.client_phone}</div>
+                                        <div className="text-[11px] text-gray-400">{g.client_phone}</div>
                                       </div>
+                                    ))}
+                                    {activeMeeting ? (
+                                      (() => {
+                                        const c = getCardColor(activeMeeting)
+                                        return (
+                                          <div
+                                            className="rounded-xl border cursor-pointer hover:shadow-md transition shadow-sm flex"
+                                            style={{ background: c.bg, borderColor: c.border }}
+                                            onClick={() => setModal({ open: true, meeting: activeMeeting, date: expandedDay, time, mop })}
+                                          >
+                                            <div className="w-1.5 rounded-l-xl flex-shrink-0" style={{ background: c.bar }} />
+                                            <div className="flex-1 min-w-0 px-2.5 py-2.5 space-y-1.5">
+                                              <div>
+                                                <div className="font-bold text-sm leading-tight truncate" style={{ color: 'var(--navy)' }}>
+                                                  {activeMeeting.client_name}
+                                                  {activeMeeting.is_repeated && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded-full font-semibold" style={{ background: '#fef3c7', color: '#92400e' }}>Повторная</span>}
+                                                </div>
+                                                <div className="text-[11px] text-gray-500">{activeMeeting.client_phone}</div>
+                                              </div>
+                                              <div className="flex flex-wrap gap-1 items-center">
+                                                <span className="text-[10px] font-medium text-gray-400 w-full">Статус:</span>
+                                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={getStatusStyle(activeMeeting.status)}>
+                                                  {activeMeeting.status}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-[10px] font-medium text-gray-400">Результат:</span>
+                                                {activeMeeting.result ? (
+                                                  <span className="ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={getResultStyle(activeMeeting.result)}>
+                                                    {activeMeeting.result}
+                                                  </span>
+                                                ) : (
+                                                  <span className="ml-1 text-[11px] text-gray-300 italic">не указан</span>
+                                                )}
+                                              </div>
+                                              <div className="rounded-lg px-2 py-1.5" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                                                <span className="text-[10px] font-medium text-gray-400">Комментарий МОП: </span>
+                                                <span className="text-[11px] text-gray-500">
+                                                  {activeMeeting.comment_mop || <span className="italic text-gray-300">не заполнен</span>}
+                                                </span>
+                                              </div>
+                                              {activeMeeting.bitrix_link && (
+                                                <a
+                                                  href={activeMeeting.bitrix_link}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  onClick={e => e.stopPropagation()}
+                                                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg w-fit"
+                                                  style={{ background: '#dbeafe', color: '#1d4ed8' }}
+                                                >
+                                                  <ExternalLink size={10} /> Bitrix24
+                                                </a>
+                                              )}
+                                            </div>
+                                            <button
+                                              onClick={e => { e.stopPropagation(); setModal({ open: true, meeting: activeMeeting, date: expandedDay, time, mop }) }}
+                                              className="flex-shrink-0 px-1.5 flex items-start pt-2.5 text-gray-300 hover:text-gray-500 transition"
+                                            >
+                                              <Pencil size={12} />
+                                            </button>
+                                          </div>
+                                        )
+                                      })()
+                                    ) : (
+                                      <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
+                                        className={`w-full rounded-xl border-2 border-dashed min-h-[96px] flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}>
+                                        <Plus size={13} /> Записать
+                                      </button>
                                     )}
-                                    <button onClick={() => setModal({ open: true, date: expandedDay, time, mop })}
-                                      className={`w-full rounded-xl border-2 border-dashed py-3 flex items-center justify-center gap-1.5 transition text-xs font-medium ${MOP_COLORS[mop].slot}`}>
-                                      <Plus size={13} /> Записать
-                                    </button>
                                   </>
                                 )}
                               </div>
