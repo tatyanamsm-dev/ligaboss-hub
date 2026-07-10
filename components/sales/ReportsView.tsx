@@ -74,9 +74,11 @@ export default function ReportsView({ userRole, userMopName }: Props) {
     return new Set([...regularTimes, ...extraTimes]).size
   }
 
+  const GHOST_STATUSES = ['Отменил','Отменил (в день встречи)','Отменил (до дня встречи)','По нашей причине','Игнор в день встречи','Перенос до дня встречи','Перенос в день встречи']
+
   // Итого KPI
-  const totalConducted = meetings.filter(m => m.status === 'Подтвердил').length
-  const totalSales = meetings.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
+  const totalConducted = meetings.filter(m => m.status === 'Произошёл' || m.status === 'Пообщались по телефону').length
+  const totalSales = payments.length
   const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0)
   const conv = totalConducted > 0 ? Math.round(totalSales / totalConducted * 100) : 0
 
@@ -126,9 +128,9 @@ export default function ReportsView({ userRole, userMopName }: Props) {
             const mopsInDay = visibleMops.filter(mop => dayMeetings.some(m => m.mop_name === mop) || getSlotsForMopDay(mop, dateStr) > 0)
 
             const dayTotalSlots = mopsInDay.reduce((s, mop) => s + getSlotsForMopDay(mop, dateStr), 0)
-            const dayTotalBooked = dayMeetings.filter(m => !m.is_transferred).length
-            const dayTotalConducted = dayMeetings.filter(m => m.status === 'Подтвердил').length
-            const dayTotalSales = dayMeetings.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
+            const dayTotalBooked = dayMeetings.filter(m => !m.is_transferred && !GHOST_STATUSES.includes(m.status)).length
+            const dayTotalConducted = dayMeetings.filter(m => m.status === 'Произошёл' || m.status === 'Пообщались по телефону').length
+            const dayTotalSales = dayPayments.length
             const dayTotalRevenue = dayPayments.reduce((s, p) => s + Number(p.amount), 0)
 
             return (
@@ -156,9 +158,9 @@ export default function ReportsView({ userRole, userMopName }: Props) {
                     </thead>
                     <tbody>
                       {mopsInDay.map(mop => {
-                        const mm = dayMeetings.filter(m => m.mop_name === mop && !m.is_transferred)
-                        const conducted = mm.filter(m => m.status === 'Подтвердил').length
-                        const sales = mm.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
+                        const mm = dayMeetings.filter(m => m.mop_name === mop && !m.is_transferred && !GHOST_STATUSES.includes(m.status))
+                        const conducted = dayMeetings.filter(m => m.mop_name === mop && (m.status === 'Произошёл' || m.status === 'Пообщались по телефону')).length
+                        const sales = dayPayments.filter(p => p.mop_name === mop).length
                         const rev = dayPayments.filter(p => p.mop_name === mop).reduce((s, p) => s + Number(p.amount), 0)
                         const slotCount = getSlotsForMopDay(mop, dateStr)
                         return (

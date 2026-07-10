@@ -101,9 +101,10 @@ export default function SummaryView({ userRole, userMopName }: Props) {
   // Среднее кол-во активных слотов в день на всех МОПов
   const totalSlotCount = slots.length > 0 ? Math.round((slots.length / 7) * dayCount) : 0
 
-  const uniqueMeetings = meetings.filter(m => !m.is_repeated)
-  const conductedMeetings = meetings.filter(m => m.status === 'Подтвердил')
-  const salesMeetings = meetings.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи')
+  const GHOST_STATUSES = ['Отменил','Отменил (в день встречи)','Отменил (до дня встречи)','По нашей причине','Игнор в день встречи','Перенос до дня встречи','Перенос в день встречи']
+  const uniqueMeetings = meetings.filter(m => !m.is_repeated && !m.is_transferred && !GHOST_STATUSES.includes(m.status))
+  const conductedMeetings = meetings.filter(m => m.status === 'Произошёл' || m.status === 'Пообщались по телефону')
+  const salesMeetings = payments
   const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0)
   const avgCheck = payments.length > 0 ? Math.round(totalRevenue / payments.length) : 0
 
@@ -166,10 +167,10 @@ export default function SummaryView({ userRole, userMopName }: Props) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {visibleMops.map(mop => {
-                    const mm = meetings.filter(m => m.mop_name === mop && !m.is_repeated)
-                    const conducted = meetings.filter(m => m.mop_name === mop && m.status === 'Подтвердил')
-                    const sales = meetings.filter(m => m.mop_name === mop && (m.result === 'Купил во время встречи' || m.result === 'Купил после встречи'))
+                    const mm = meetings.filter(m => m.mop_name === mop && !m.is_repeated && !m.is_transferred && !GHOST_STATUSES.includes(m.status))
+                    const conducted = meetings.filter(m => m.mop_name === mop && (m.status === 'Произошёл' || m.status === 'Пообщались по телефону'))
                     const pp = payments.filter(p => p.mop_name === mop)
+                    const sales = pp
                     const rev = pp.reduce((s, p) => s + Number(p.amount), 0)
                     const avg = pp.length > 0 ? Math.round(rev / pp.length) : 0
                     const conv = pct(sales.length, conducted.length)

@@ -66,9 +66,10 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
   }, [period, customFrom, customTo])
 
   const visibleMops = userRole === 'rop' ? MOPS : (userMopName ? [userMopName] : [])
-  const total = meetings.length
-  const conducted = meetings.filter(m => m.status === 'Подтвердил').length
-  const sales = meetings.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
+  const GHOST_STATUSES = ['Отменил','Отменил (в день встречи)','Отменил (до дня встречи)','По нашей причине','Игнор в день встречи','Перенос до дня встречи','Перенос в день встречи']
+  const total = meetings.filter(m => !m.is_transferred && !GHOST_STATUSES.includes(m.status)).length
+  const conducted = meetings.filter(m => m.status === 'Произошёл' || m.status === 'Пообщались по телефону').length
+  const sales = payments.length
   const revenue = payments.reduce((s, p) => s + Number(p.amount), 0)
 
   return (
@@ -106,10 +107,10 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {visibleMops.map(mop => {
-                    const mm = meetings.filter(m => m.mop_name === mop)
+                    const mm = meetings.filter(m => m.mop_name === mop && !m.is_transferred && !GHOST_STATUSES.includes(m.status))
                     const pp = payments.filter(p => p.mop_name === mop)
-                    const mConducted = mm.filter(m => m.status === 'Подтвердил').length
-                    const mSales = mm.filter(m => m.result === 'Купил во время встречи' || m.result === 'Купил после встречи').length
+                    const mConducted = meetings.filter(m => m.mop_name === mop && (m.status === 'Произошёл' || m.status === 'Пообщались по телефону')).length
+                    const mSales = pp.length
                     const mRevenue = pp.reduce((s, p) => s + Number(p.amount), 0)
                     const conv = mConducted ? Math.round(mSales / mConducted * 100) : 0
                     return (
@@ -117,7 +118,7 @@ export default function AnalyticsView({ userRole, userMopName }: Props) {
                         <td className="px-4 py-3 font-semibold" style={{ color: 'var(--navy)' }}>{mop}</td>
                         <td className="px-4 py-3 text-gray-600">{mm.length}</td>
                         <td className="px-4 py-3 text-gray-600">{mConducted}</td>
-                        <td className="px-4 py-3 text-red-500">{mm.filter(m => m.status === 'Игнор в день встречи').length}</td>
+                        <td className="px-4 py-3 text-red-500">{meetings.filter(m => m.mop_name === mop && m.status === 'Игнор в день встречи').length}</td>
                         <td className="px-4 py-3 font-semibold text-emerald-600">{mSales}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${conv >= 50 ? 'bg-emerald-100 text-emerald-700' : conv >= 25 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
