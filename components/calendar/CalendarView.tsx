@@ -30,9 +30,15 @@ const MOP_COLORS: Record<MopName, { badge: string; slot: string; dot: string }> 
 const STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
   'Назначен':                   { dot: 'bg-gray-400',    label: 'text-gray-600' },
   'Подтвердил':                 { dot: 'bg-blue-500',    label: 'text-blue-700' },
+  'Произошёл':                  { dot: 'bg-emerald-500', label: 'text-emerald-700' },
+  'Пообщались по телефону':     { dot: 'bg-emerald-400', label: 'text-emerald-600' },
   'Перенос в день встречи':     { dot: 'bg-orange-400',  label: 'text-orange-700' },
   'Перенос до дня встречи':     { dot: 'bg-orange-300',  label: 'text-orange-600' },
   'Игнор в день встречи':       { dot: 'bg-red-400',     label: 'text-red-700' },
+  'Отменил':                    { dot: 'bg-red-500',     label: 'text-red-700' },
+  'Отменил (в день встречи)':   { dot: 'bg-red-500',     label: 'text-red-700' },
+  'Отменил (до дня встречи)':   { dot: 'bg-red-400',     label: 'text-red-700' },
+  'По нашей причине':           { dot: 'bg-red-600',     label: 'text-red-800' },
 }
 
 function getCardColor(meeting: Meeting): { bg: string; border: string; bar: string } {
@@ -46,8 +52,10 @@ function getCardColor(meeting: Meeting): { bg: string; border: string; bar: stri
     return { bg: '#fefce8', border: '#fde047', bar: '#eab308' }
   if (s === 'Перенос в день встречи' || s === 'Перенос до дня встречи')
     return { bg: '#fff7ed', border: '#fdba74', bar: '#f97316' }
-  if (s === 'Игнор в день встречи')
+  if (s === 'Отменил' || s === 'Отменил (в день встречи)' || s === 'Отменил (до дня встречи)' || s === 'Игнор в день встречи' || s === 'По нашей причине')
     return { bg: '#fff1f2', border: '#fca5a5', bar: '#ef4444' }
+  if (s === 'Пообщались по телефону' || s === 'Произошёл')
+    return { bg: '#fefce8', border: '#fde047', bar: '#eab308' }
   return { bg: '#ffffff', border: '#e5e7eb', bar: '#d1d5db' }
 }
 
@@ -59,8 +67,9 @@ function getResultStyle(result: string | null): React.CSSProperties {
 }
 
 function getStatusStyle(status: string): React.CSSProperties {
+  if (status === 'Произошёл' || status === 'Пообщались по телефону') return { background: '#d1fae5', color: '#065f46' }
   if (status.startsWith('Перенос')) return { background: '#ffedd5', color: '#c2410c' }
-  if (status === 'Игнор в день встречи') return { background: '#fee2e2', color: '#dc2626' }
+  if (status === 'Отменил' || status === 'Отменил (в день встречи)' || status === 'Отменил (до дня встречи)' || status === 'Игнор в день встречи' || status === 'По нашей причине') return { background: '#fee2e2', color: '#dc2626' }
   if (status === 'Подтвердил') return { background: '#dbeafe', color: '#1d4ed8' }
   return { background: '#f3f4f6', color: '#6b7280' }
 }
@@ -155,6 +164,10 @@ export default function CalendarView({ userRole, userMopName }: Props) {
       || m.status === 'Игнор в день встречи'
       || m.status === 'Перенос до дня встречи'
       || m.status === 'Перенос в день встречи'
+      || m.status === 'Отменил'
+      || m.status === 'Отменил (в день встречи)'
+      || m.status === 'Отменил (до дня встречи)'
+      || m.status === 'По нашей причине'
       || meetings.some(m2 => m2.original_meeting_id === m.id)
   }
 
